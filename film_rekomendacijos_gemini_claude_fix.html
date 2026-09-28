@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineStream - Filmų Rekomendacijos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Ikonos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            red: '#E50914',
+                            darkRed: '#B81D24',
+                            purple: '#8A2BE2',
+                            darkBg: '#0F0F12',
+                            cardBg: '#18181C',
+                            border: '#2A2A32'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0F0F12;
+            color: #E2E8F0;
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism efektai */
+        .glass-panel {
+            background: rgba(24, 24, 28, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-header {
+            background: rgba(15, 15, 18, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0F0F12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2A2A32;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #E50914;
+        }
+
+        .glow-effect:hover {
+            box-shadow: 0 0 20px rgba(229, 9, 20, 0.4);
+        }
+        
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-brand-red selection:text-white">
+
+    <header class="sticky top-0 z-40 glass-header border-b border-brand-border/50 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+            <!-- Logo -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="resetFilters()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-red to-brand-purple flex items-center justify-center shadow-lg shadow-brand-red/30">
+                    <i class="fa-solid font-bold fa-play text-white text-lg ml-0.5"></i>
+                </div>
+                <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400 tracking-wider">
+                    CINE<span class="text-brand-red">STREAM</span>
+                </span>
+            </div>
+
+            <!-- Central Search Bar (Desktop) -->
+            <div class="hidden md:flex flex-1 max-w-md mx-8 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Išbandykite paiešką pagal pavadinimą, žanrą..." 
+                       class="w-full bg-brand-cardBg/90 border border-brand-border text-slate-200 pl-11 pr-10 py-2.5 rounded-full focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red transition-all text-sm placeholder-slate-500">
+                <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-3">
+                <button onclick="toggleWatchlistModal(true)" class="relative flex items-center gap-2 px-4 py-2.5 rounded-full bg-brand-cardBg hover:bg-brand-border/60 border border-brand-border text-sm font-medium transition-all group">
+                    <i class="fa-solid fa-bookmark text-brand-red group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden sm:inline">Mano sąrašas</span>
+                    <span id="watchlistCount" class="bg-brand-red text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Search Bar -->
+        <div class="px-4 pb-4 md:hidden">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="mobileSearchInput" oninput="handleMobileSearch()" placeholder="Filmų paieška..." 
+                       class="w-full bg-brand-cardBg border border-brand-border text-slate-200 pl-11 pr-10 py-2.5 rounded-full focus:outline-none focus:border-brand-red text-sm">
+            </div>
+        </div>
+    </header>
+
+    <section class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+        <div class="relative rounded-3xl overflow-hidden bg-gradient-to-r from-brand-cardBg to-black border border-brand-border p-6 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
+            <!-- Background Accent Glows -->
+            <div class="absolute -top-24 -left-24 w-72 h-72 bg-brand-red/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-72 h-72 bg-brand-purple/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="z-10 max-w-xl text-center md:text-left">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-red/10 text-brand-red border border-brand-red/20 mb-4">
+                    <i class="fa-solid fa-fire text-xs"></i> Šios savaitės populiariausi
+                </span>
+                <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight mb-4">
+                    Atraskite Kito Lygio <span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-red to-brand-purple">Kino Patirtį</span>
+                </h1>
+                <p class="text-slate-400 text-sm sm:text-base mb-6 leading-relaxed">
+                    Personalizuotos filmų rekomendacijos, naujausi anonsai ir geriausi įvertinimai vienoje vietoje.
+                </p>
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                    <button onclick="scrollToMovies()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-brand-red to-brand-darkRed hover:from-red-600 hover:to-brand-red text-white font-medium shadow-lg shadow-brand-red/30 hover:shadow-brand-red/50 transition-all transform hover:-translate-y-0.5 flex items-center gap-2">
+                        <i class="fa-solid fa-compass"></i> Tyrinėti filmus
+                    </button>
+                    <button onclick="filterByGenre('Mokslinė fantastika')" class="px-5 py-3 rounded-xl bg-brand-cardBg border border-brand-border hover:bg-brand-border/40 text-slate-300 font-medium transition-all">
+                        🚀 Sci-Fi Top
+                    </button>
+                </div>
+            </div>
+
+            <!-- Featured Poster Stack Visual -->
+            <div class="z-10 relative hidden lg:flex items-center justify-center w-72 h-48">
+                <div class="absolute w-36 h-48 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl -rotate-12 translate-x-[-40px] opacity-60 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover" alt="Poster 1">
+                </div>
+                <div class="absolute w-36 h-48 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl rotate-12 translate-x-[40px] opacity-60 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover" alt="Poster 2">
+                </div>
+                <div class="absolute w-40 h-52 rounded-xl bg-slate-800 border border-brand-red/50 shadow-2xl z-10 overflow-hidden transform hover:scale-105 transition-transform duration-300">
+                    <img src="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover" alt="Main Poster">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <main id="moviesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        <!-- Controls & Filter Bar -->
+        <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mb-8">
+            <!-- Categories / Genres -->
+            <div id="categoryContainer" class="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none no-scrollbar">
+                <!-- Genre buttons dynamically injected or static -->
+            </div>
+
+            <!-- Sorting Dropdown -->
+            <div class="flex items-center justify-between sm:justify-end gap-3 border-t border-brand-border/40 pt-4 lg:pt-0 lg:border-none">
+                <span class="text-xs text-slate-400 font-medium whitespace-nowrap">Rūšiuoti pagal:</span>
+                <select id="sortSelect" onchange="handleSort()" class="bg-brand-cardBg border border-brand-border text-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-brand-red cursor-pointer">
+                    <option value="rating-desc">⭐ Geriausiai įvertinti</option>
+                    <option value="year-desc">📅 Naujausi</option>
+                    <option value="title-asc">🔤 Abėcėlės tvarka (A-Ž)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Active Filter Indicator -->
+        <div id="activeFilterBadge" class="hidden items-center gap-2 mb-6 text-sm text-slate-400">
+            <span>Rodomi rezultatai kategorijai:</span>
+            <span id="filterName" class="font-semibold text-brand-red bg-brand-red/10 border border-brand-red/20 px-3 py-1 rounded-full text-xs"></span>
+            <button onclick="resetFilters()" class="text-slate-400 hover:text-white text-xs underline ml-2">Išvalyti filtrą</button>
+        </div>
+
+        <!-- Movie Grid -->
+        <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <!-- Cards generated dynamically via JavaScript -->
+        </div>
+
+        <!-- Empty State Message -->
+        <div id="emptyState" class="hidden text-center py-16">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-cardBg border border-brand-border flex items-center justify-center text-slate-500 text-2xl">
+                <i class="fa-solid fa-film"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-1">Filmų nerasta</h3>
+            <p class="text-slate-400 text-sm max-w-md mx-auto">Pagal jūsų paieškos kriterijus filmų nepavyko rasti. Bandykite pakeisti paieškos žodį arba pasirinkite kitą žanrą.</p>
+            <button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-brand-cardBg hover:bg-brand-border border border-brand-border rounded-xl text-sm font-medium text-slate-200 transition-all">
+                Atstatyti visus filtrus
+            </button>
+        </div>
+    </main>
+
+    <div id="watchlistModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-end opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="w-full max-w-md bg-brand-darkBg h-full border-l border-brand-border p-6 flex flex-col justify-between transform translate-x-full transition-transform duration-300 id-modal-content">
+            <div>
+                <div class="flex items-center justify-between pb-4 border-b border-brand-border mb-6">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-bookmark text-brand-red text-xl"></i>
+                        <h2 class="text-xl font-bold text-white">Mano Sąrašas</h2>
+                    </div>
+                    <button onclick="toggleWatchlistModal(false)" class="w-8 h-8 rounded-full bg-brand-cardBg hover:bg-brand-border flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="watchlistItems" class="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+                    <!-- Dynamic watchlist items inserted here -->
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-brand-border">
+                <button onclick="clearWatchlist()" class="w-full py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm font-medium transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-trash-can"></i> Išvalyti visą sąrašą
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="movieDetailModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-brand-cardBg border border-brand-border rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative transform scale-95 transition-transform duration-300 modal-box">
+            <!-- Close Button -->
+            <button onclick="closeDetailModal()" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center border border-white/10 transition-all">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <!-- Trailer / Header Visual -->
+            <div class="relative w-full aspect-video bg-black rounded-t-2xl overflow-hidden">
+                <iframe id="modalTrailer" class="w-full h-full" src="" title="Filmo Anonsas" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+
+            <!-- Details Content -->
+            <div class="p-6 sm:p-8 space-y-6">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span id="modalYear" class="text-xs font-semibold px-2.5 py-1 rounded-md bg-brand-border text-slate-300"></span>
+                            <span id="modalGenre" class="text-xs font-semibold px-2.5 py-1 rounded-md bg-brand-purple/20 text-brand-purple border border-brand-purple/30"></span>
+                        </div>
+                        <h2 id="modalTitle" class="text-2xl sm:text-3xl font-bold text-white"></h2>
+                        <p id="modalOrigTitle" class="text-sm text-slate-400 italic mt-0.5"></p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-brand-darkBg px-4 py-2 rounded-xl border border-brand-border">
+                        <i class="fa-solid fa-star text-amber-400 text-lg"></i>
+                        <div>
+                            <span id="modalRating" class="text-lg font-bold text-white"></span>
+                            <span class="text-xs text-slate-400"> / 10</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Aprašymas</h4>
+                    <p id="modalDescription" class="text-slate-300 leading-relaxed text-sm sm:text-base"></p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-brand-border text-sm">
+                    <div>
+                        <span class="text-slate-400 block text-xs mb-1">Režisierius:</span>
+                        <span id="modalDirector" class="text-slate-200 font-medium"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-xs mb-1">Vaidina:</span>
+                        <span id="modalCast" class="text-slate-200 font-medium"></span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-brand-border">
+                    <button id="modalWatchlistBtn" class="px-6 py-2.5 rounded-xl bg-brand-red hover:bg-brand-darkRed text-white text-sm font-medium transition-all flex items-center gap-2">
+                        <!-- Dynamic Watchlist Text -->
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="border-t border-brand-border/60 bg-brand-darkBg py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <div class="flex items-center justify-center gap-2 mb-3">
+                <div class="w-6 h-6 rounded-md bg-brand-red flex items-center justify-center text-white text-xs">
+                    <i class="fa-solid fa-play"></i>
+                </div>
+                <span class="font-bold text-white tracking-wider text-sm">CINESTREAM</span>
+            </div>
+            <p class="text-slate-500 text-xs">© 2026 Filmų rekomendacijų prototipas. Sukurta demonstraciniams tikslams Lithuanian kalba.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Filmų duomenų bazė (Mock Data)
+        const MOVIES_DATA = [
+            {
+                id: 'm1',
+                title: 'Kopa: Antroji dalis',
+                originalTitle: 'Dune: Part Two',
+                genre: 'Mokslinė fantastika',
+                rating: 8.6,
+                year: 2024,
+                poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
+                description: 'Polas Atreidas susivienija su Chani ir fremenais, siekdamas keršto prieš sąmokslininkus, sunaikinusius jo šeimą. Atsidūręs tarp gyvenimo meilės ir visatos likimo, jis stengiasi užkirsti kelią baisiai ateičiai.',
+                director: 'Denis Villeneuve',
+                cast: 'Timothée Chalamet, Zendaya, Rebecca Ferguson',
+                trailerUrl: 'https://www.youtube.com/embed/Way9Dexny3w'
+            },
+            {
+                id: 'm2',
+                title: 'Openhaimeris',
+                originalTitle: 'Oppenheimer',
+                genre: 'Drama',
+                rating: 8.9,
+                year: 2023,
+                poster: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&w=600&q=80',
+                description: 'Atskleidžiama fiziko J. Robert Oppenheimer istorija ir jo vaidmuo plėtojant Manheteno projektą – pirmąjį pasaulyje branduolinį ginklą, pakeitusį žmonijos istoriją visiems laikams.',
+                director: 'Christopher Nolan',
+                cast: 'Cillian Murphy, Emily Blunt, Matt Damon',
+                trailerUrl: 'https://www.youtube.com/embed/uYPbbksJxIg'
+            },
+            {
+                id: 'm3',
+                title: 'Betmenas',
+                originalTitle: 'The Batman',
+                genre: 'Trileris',
+                rating: 7.8,
+                year: 2022,
+                poster: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
+                description: 'Kai sadistas žudikas palieka mįslingų užuominų virtinę, Betmenas skverbiasi giliai į Gotamo požemį. Pėdsakai veda prie nusikaltimų organizatorių ir paties herojaus praeities.',
+                director: 'Matt Reeves',
+                cast: 'Robert Pattinson, Zoë Kravitz, Paul Dano',
+                trailerUrl: 'https://www.youtube.com/embed/mqqft2x_Aa4'
+            },
+            {
+                id: 'm4',
+                title: 'Žmogus-voras: Per Visatas',
+                originalTitle: 'Spider-Man: Across the Spider-Verse',
+                genre: 'Animacija',
+                rating: 8.7,
+                year: 2023,
+                poster: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?auto=format&fit=crop&w=600&q=80',
+                description: 'Mailsas Moralesas vyksta per multivisatą, kur sutinka kitų Žmonių-vorų komandą. Kilus nesutarimams dėl grėsmės suvaldymo, Mailsas turi iš naujo apibrėžti, ką reiškia būti herojumi.',
+                director: 'Joaquim Dos Santos, Kemp Powers',
+                cast: 'Shameik Moore, Hailee Steinfeld, Oscar Isaac',
+                trailerUrl: 'https://www.youtube.com/embed/cqGjhVJWtEg'
+            },
+            {
+                id: 'm5',
+                title: 'Mirtina kova: Džonas Vikas 4',
+                originalTitle: 'John Wick: Chapter 4',
+                genre: 'Veiksmo',
+                rating: 7.7,
+                year: 2023,
+                poster: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
+                description: 'Džonas Vikas suranda būdą, kaip nugalėti Aukščiausiąjį Stalių. Tačiau prieš užsitarnaudamas laisvę, jis turi susidurti su nauju galingu priešu ir senais draugais visame pasaulyje.',
+                director: 'Chad Stahelski',
+                cast: 'Keanu Reeves, Donnie Yen, Bill Skarsgård',
+                trailerUrl: 'https://www.youtube.com/embed/yjRHZEUamCc'
+            },
+            {
+                id: 'm6',
+                title: 'Pradžia',
+                originalTitle: 'Inception',
+                genre: 'Mokslinė fantastika',
+                rating: 8.8,
+                year: 2010,
+                poster: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?auto=format&fit=crop&w=600&q=80',
+                description: 'Vagis, kuris pavagia korporatyvines paslaptis per sapnų skaitymo technologiją, gauna atvirkštinę užduotį: įdiegti idėją į C.E.O. protą.',
+                director: 'Christopher Nolan',
+                cast: 'Leonardo DiCaprio, Joseph Gordon-Levitt, Elliot Page',
+                trailerUrl: 'https://www.youtube.com/embed/YoHD9XEInc0'
+            },
+            {
+                id: 'm7',
+                title: 'Tarp žvaigždžių',
+                originalTitle: 'Interstellar',
+                genre: 'Mokslinė fantastika',
+                rating: 8.7,
+                year: 2014,
+                poster: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80',
+                description: 'Tyrinėtojų komanda keliauja pro červotoją visatoje, siekdama užtikrinti žmonijos išlikimą, kol Žemėje ištekliai sparčiai senka.',
+                director: 'Christopher Nolan',
+                cast: 'Matthew McConaughey, Anne Hathaway, Jessica Chastain',
+                trailerUrl: 'https://www.youtube.com/embed/zSWdZVtXT7E'
+            },
+            {
+                id: 'm8',
+                title: 'Parasite',
+                originalTitle: 'Gisaengchung',
+                genre: 'Trileris',
+                rating: 8.5,
+                year: 2019,
+                poster: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=600&q=80',
+                description: 'Atskleidžiama skurdžios ir turtingos šeimos diskriminacija bei socialinė atskirtis, kuomet vargšų šeima klasta įsidarbina turtingų žmonių namuose.',
+                director: 'Bong Joon Ho',
+                cast: 'Song Kang-ho, Lee Sun-kyun, Cho Yeo-jeong',
+                trailerUrl: 'https://www.youtube.com/embed/5xH0HfJHsaY'
+            },
+            {
+                id: 'm9',
+                title: 'Išgalvotas pasaulis: Broliai Super Mario',
+                originalTitle: 'The Super Mario Bros. Movie',
+                genre: 'Komedija',
+                rating: 7.1,
+                year: 2023,
+                poster: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+                description: 'Brukliniečiai santechnikai Mario ir Luidžis transportuojami paslaptingu vamzdžiu ir patenka į stebuklingą pasaulį, kur laukia neįtikėtini nuotykiai.',
+                director: 'Aaron Horvath, Michael Jelenic',
+                cast: 'Chris Pratt, Anya Taylor-Joy, Jack Black',
+                trailerUrl: 'https://www.youtube.com/embed/TnGlL16f4ag'
+            }
+        ];
+
+        // Žanrų sąrašas
+        const GENRES = ['Visi', 'Veiksmo', 'Drama', 'Mokslinė fantastika', 'Komedija', 'Trileris', 'Animacija'];
+
+        // Būsenos valdymas (State)
+        let state = {
+            movies: [...MOVIES_DATA],
+            filteredMovies: [...MOVIES_DATA],
+            selectedGenre: 'Visi',
+            searchQuery: '',
+            sortBy: 'rating-desc',
+            watchlist: JSON.parse(localStorage.getItem('cinestream_watchlist') || '[]')
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderGenres();
+            applyFilters();
+            updateWatchlistCount();
+        });
+
+        // Žanrų mygtukų atvaizdavimas
+        function renderGenres() {
+            const container = document.getElementById('categoryContainer');
+            container.innerHTML = GENRES.map(genre => {
+                const isActive = state.selectedGenre === genre;
+                return `
+                    <button onclick="filterByGenre('${genre}')" 
+                        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                            isActive 
+                            ? 'bg-brand-red text-white shadow-lg shadow-brand-red/30' 
+                            : 'bg-brand-cardBg text-slate-400 hover:text-white hover:bg-brand-border/60 border border-brand-border'
+                        }">
+                        ${genre}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function filterByGenre(genre) {
+            state.selectedGenre = genre;
+            renderGenres();
+            
+            const badge = document.getElementById('activeFilterBadge');
+            const badgeText = document.getElementById('filterName');
+            if (genre !== 'Visi') {
+                badge.classList.remove('hidden');
+                badge.classList.add('flex');
+                badgeText.innerText = genre;
+            } else {
+                badge.classList.add('hidden');
+                badge.classList.remove('flex');
+            }
+
+            applyFilters();
+        }
+
+        function handleSearch() {
+            const input = document.getElementById('searchInput');
+            const clearBtn = document.getElementById('clearSearchBtn');
+            state.searchQuery = input.value.trim().toLowerCase();
+
+            if (state.searchQuery) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            applyFilters();
+        }
+
+        function handleMobileSearch() {
+            const input = document.getElementById('mobileSearchInput');
+            state.searchQuery = input.value.trim().toLowerCase();
+            applyFilters();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('mobileSearchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            state.searchQuery = '';
+            applyFilters();
+        }
+
+        function resetFilters() {
+            state.selectedGenre = 'Visi';
+            state.searchQuery = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('mobileSearchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            document.getElementById('activeFilterBadge').classList.add('hidden');
+            renderGenres();
+            applyFilters();
+        }
+
+        function handleSort() {
+            state.sortBy = document.getElementById('sortSelect').value;
+            applyFilters();
+        }
+
+        function norm(s) {
+          return s
+            .normalize('NFD')                 // ž → z + ženklas
+            .replace(/[\u0300-\u036f]/g, '')  // pašalina ženklus
+            .replace(/[-–]/g, ' ')            // brūkšnelį paverčia tarpu
+            .toLowerCase();
+        }
+
+        function applyFilters() {
+            let result = [...MOVIES_DATA];
+
+            // 1. Žanro filtras
+            if (state.selectedGenre !== 'Visi') {
+                result = result.filter(m => m.genre.toLowerCase() === state.selectedGenre.toLowerCase());
+            }
+
+            // 2. Paieškos filtras
+            if (state.searchQuery) {
+                const q = norm(state.searchQuery);
+                result = result.filter(m =>
+                    norm(m.title).includes(q) ||
+                    norm(m.originalTitle).includes(q) ||
+                    norm(m.genre).includes(q)
+                );
+            }
+
+            // 3. Rūšiavimas
+            switch (state.sortBy) {
+                case 'rating-desc':
+                    result.sort((a, b) => b.rating - a.rating);
+                    break;
+                case 'year-desc':
+                    result.sort((a, b) => b.year - a.year);
+                    break;
+                case 'title-asc':
+                    result.sort((a, b) => a.title.localeCompare(b.title, 'lt'));
+                    break;
+            }
+
+            state.filteredMovies = result;
+            renderMovies();
+        }
+
+        function renderMovies() {
+            const grid = document.getElementById('movieGrid');
+            const emptyState = document.getElementById('emptyState');
+
+            if (state.filteredMovies.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            grid.innerHTML = state.filteredMovies.map(movie => {
+                const inWatchlist = state.watchlist.includes(movie.id);
+                return `
+                    <div class="group bg-brand-cardBg rounded-2xl overflow-hidden border border-brand-border/60 hover:border-brand-red/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-red/10 flex flex-col justify-between">
+                        <!-- Poster Container -->
+                        <div class="relative aspect-[2/3] overflow-hidden bg-slate-900 cursor-pointer" onclick="openDetailModal('${movie.id}')">
+                            <img src="${movie.poster}" alt="${movie.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 loading="lazy">
+                            
+                            <!-- Badges Over Image -->
+                            <div class="absolute top-3 left-3 flex flex-col gap-1">
+                                <span class="bg-black/60 backdrop-blur-md text-amber-400 font-bold text-xs px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1">
+                                    <i class="fa-solid fa-star text-amber-400"></i> ${movie.rating}
+                                </span>
+                            </div>
+
+                            <div class="absolute top-3 right-3">
+                                <button onclick="event.stopPropagation(); toggleWatchlist('${movie.id}')" 
+                                        class="w-9 h-9 rounded-full ${inWatchlist ? 'bg-brand-red text-white' : 'bg-black/50 text-slate-300 hover:bg-brand-red hover:text-white'} backdrop-blur-md border border-white/10 flex items-center justify-center transition-all">
+                                    <i class="fa-${inWatchlist ? 'solid' : 'regular'} fa-bookmark"></i>
+                                </button>
+                            </div>
+
+                            <!-- Hover Overlay -->
+                            <div class="absolute inset-0 bg-gradient-to-t from-brand-cardBg via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                <span class="text-xs text-white font-medium bg-brand-red px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                    <i class="fa-solid fa-circle-info"></i> Peržiūrėti smulkiau
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Info Section -->
+                        <div class="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                                    <span>${movie.genre}</span>
+                                    <span>${movie.year}</span>
+                                </div>
+                                <h3 onclick="openDetailModal('${movie.id}')" class="font-bold text-white text-base hover:text-brand-red cursor-pointer transition-colors line-clamp-1" title="${movie.title}">
+                                    ${movie.title}
+                                </h3>
+                                <p class="text-xs text-slate-500 italic mb-2">${movie.originalTitle}</p>
+                                <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">${movie.description}</p>
+                            </div>
+
+                            <button onclick="openDetailModal('${movie.id}')" class="mt-4 w-full py-2 rounded-xl bg-brand-darkBg hover:bg-brand-border text-slate-300 hover:text-white text-xs font-medium border border-brand-border transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-play text-brand-red"></i> Anonsas ir Informacija
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleWatchlist(movieId) {
+            const index = state.watchlist.indexOf(movieId);
+            if (index > -1) {
+                state.watchlist.splice(index, 1);
+            } else {
+                state.watchlist.push(movieId);
+            }
+            
+            localStorage.setItem('cinestream_watchlist', JSON.stringify(state.watchlist));
+            updateWatchlistCount();
+            renderMovies();
+            renderWatchlistItems();
+
+            // Update detail modal button if open
+            const modalBtn = document.getElementById('modalWatchlistBtn');
+            if (modalBtn && modalBtn.dataset.movieId === movieId) {
+                const inWatchlist = state.watchlist.includes(movieId);
+                modalBtn.innerHTML = inWatchlist 
+                    ? `<i class="fa-solid fa-bookmark"></i> Pašalinti iš sąrašo`
+                    : `<i class="fa-regular fa-bookmark"></i> Pridėti į sąrašą`;
+            }
+        }
+
+        function updateWatchlistCount() {
+            document.getElementById('watchlistCount').innerText = state.watchlist.length;
+        }
+
+        function toggleWatchlistModal(show) {
+            const modal = document.getElementById('watchlistModal');
+            const content = modal.querySelector('.id-modal-content');
+
+            if (show) {
+                renderWatchlistItems();
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                content.classList.remove('translate-x-full');
+            } else {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                content.classList.add('translate-x-full');
+            }
+        }
+
+        function renderWatchlistItems() {
+            const container = document.getElementById('watchlistItems');
+            const watchlistMovies = MOVIES_DATA.filter(m => state.watchlist.includes(m.id));
+
+            if (watchlistMovies.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-500">
+                        <i class="fa-regular fa-bookmark text-3xl mb-2 block"></i>
+                        <p class="text-sm">Jūsų sąrašas tuščias</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = watchlistMovies.map(movie => `
+                <div class="flex items-center gap-3 p-2 bg-brand-cardBg rounded-xl border border-brand-border">
+                    <img src="${movie.poster}" alt="${movie.title}" class="w-14 h-20 object-cover rounded-lg">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-sm font-semibold text-white truncate">${movie.title}</h4>
+                        <p class="text-xs text-slate-400">${movie.genre} • ${movie.year}</p>
+                        <span class="text-xs text-amber-400 font-medium">★ ${movie.rating}</span>
+                    </div>
+                    <button onclick="toggleWatchlist('${movie.id}')" class="p-2 text-slate-400 hover:text-red-400 transition-colors">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function clearWatchlist() {
+            state.watchlist = [];
+            localStorage.setItem('cinestream_watchlist', JSON.stringify([]));
+            updateWatchlistCount();
+            renderMovies();
+            renderWatchlistItems();
+        }
+
+        function openDetailModal(movieId) {
+            const movie = MOVIES_DATA.find(m => m.id === movieId);
+            if (!movie) return;
+
+            document.getElementById('modalTitle').innerText = movie.title;
+            document.getElementById('modalOrigTitle').innerText = movie.originalTitle;
+            document.getElementById('modalGenre').innerText = movie.genre;
+            document.getElementById('modalYear').innerText = movie.year;
+            document.getElementById('modalRating').innerText = movie.rating;
+            document.getElementById('modalDescription').innerText = movie.description;
+            document.getElementById('modalDirector').innerText = movie.director;
+            document.getElementById('modalCast').innerText = movie.cast;
+            document.getElementById('modalTrailer').src = movie.trailerUrl + "?autoplay=1&mute=0";
+
+            const modalBtn = document.getElementById('modalWatchlistBtn');
+            modalBtn.dataset.movieId = movie.id;
+            const inWatchlist = state.watchlist.includes(movie.id);
+            modalBtn.innerHTML = inWatchlist 
+                ? `<i class="fa-solid fa-bookmark"></i> Pašalinti iš sąrašo`
+                : `<i class="fa-regular fa-bookmark"></i> Pridėti į sąrašą`;
+            modalBtn.onclick = () => toggleWatchlist(movie.id);
+
+            const modal = document.getElementById('movieDetailModal');
+            const box = modal.querySelector('.modal-box');
+            
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('movieDetailModal');
+            const box = modal.querySelector('.modal-box');
+            document.getElementById('modalTrailer').src = ""; // Stop video playback
+
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+        }
+
+        function scrollToMovies() {
+            document.getElementById('moviesSection').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
